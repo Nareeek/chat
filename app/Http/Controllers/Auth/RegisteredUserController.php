@@ -54,7 +54,7 @@ class RegisteredUserController extends Controller
             $extension = $request->file('img_path')->extension();
             $imgPath = Str::uuid() . '.' . $extension;
 
-            Storage::putFileAs('public/img_paths/' . $user->id, $request->file('img_path'), $imgPath);
+            Storage::disk('public')->putFileAs('img_paths/' . $user->id, $request->file('img_path'), $imgPath);
             $user->update(['img_path' => $imgPath]);
         }
 

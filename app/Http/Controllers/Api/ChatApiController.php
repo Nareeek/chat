@@ -65,7 +65,7 @@ class ChatApiController extends Controller
                     'user_name' => $chat->name,
                     'full_name' => $chat->full_name,
                     'user_type' => $chat->type ?: 'human',
-                    'avatar_url' => $this->avatarUrl($chat->user_id, $chat->img_path),
+                    'avatar_url' => User::avatarUrlFor($chat->user_id, $chat->img_path),
                     'created_at' => $this->formatDate($chat->created_at),
                 ];
             });
@@ -204,7 +204,7 @@ class ChatApiController extends Controller
                     'name' => $user->name,
                     'full_name' => $user->full_name,
                     'user_type' => $user->type ?: 'human',
-                    'avatar_url' => $this->avatarUrl($user->id, $user->img_path),
+                    'avatar_url' => $user->avatar_url,
                 ];
             });
 
@@ -242,7 +242,7 @@ class ChatApiController extends Controller
             'assistant' => [
                 'id' => (int) $assistant->id,
                 'name' => $assistant->name,
-                'avatar_url' => $this->avatarUrl($assistant->id, $assistant->img_path),
+                'avatar_url' => $assistant->avatar_url,
             ],
         ]);
     }
@@ -345,7 +345,7 @@ class ChatApiController extends Controller
             'user_id' => (int) $message->user_id,
             'user_name' => $message->name,
             'user_type' => $message->type ?: 'human',
-            'user_avatar_url' => $this->avatarUrl($message->user_id, $message->img_path),
+            'user_avatar_url' => User::avatarUrlFor($message->user_id, $message->img_path),
             'body' => $message->message,
             'created_at' => $this->formatDate($message->created_at),
         ];
@@ -374,7 +374,7 @@ class ChatApiController extends Controller
             'user_name' => $friend->name,
             'full_name' => $friend->full_name,
             'user_type' => $friend->type ?: 'human',
-            'avatar_url' => $this->avatarUrl($friend->id, $friend->img_path),
+            'avatar_url' => $friend->avatar_url,
         ];
     }
 
@@ -429,7 +429,7 @@ class ChatApiController extends Controller
             [
                 'full_name' => 'AI Assistant',
                 'password' => Hash::make(Str::random(40)),
-                'img_path' => 'https://bootdey.com/img/Content/avatar/avatar6.png',
+                'img_path' => User::DEFAULT_AVATAR_URL,
                 'type' => 'assistant',
             ]
         );
@@ -439,19 +439,6 @@ class ChatApiController extends Controller
         }
 
         return $assistant;
-    }
-
-    private function avatarUrl($userId, ?string $path): string
-    {
-        if (! $path) {
-            return 'https://bootdey.com/img/Content/avatar/avatar6.png';
-        }
-
-        if (Str::startsWith($path, ['http://', 'https://', '/'])) {
-            return $path;
-        }
-
-        return asset('storage/img_paths/' . $userId . '/' . $path);
     }
 
     private function formatDate($date): string

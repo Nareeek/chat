@@ -68,7 +68,7 @@ class GenerateAssistantReply implements ShouldQueue
             [
                 'full_name' => 'AI Assistant',
                 'password' => Hash::make(Str::random(40)),
-                'img_path' => 'https://bootdey.com/img/Content/avatar/avatar6.png',
+                'img_path' => User::DEFAULT_AVATAR_URL,
                 'type' => 'assistant',
             ]
         );
@@ -129,22 +129,9 @@ class GenerateAssistantReply implements ShouldQueue
             'user_id' => (int) $message->user_id,
             'user_name' => $message->name,
             'user_type' => $message->type ?: 'human',
-            'user_avatar_url' => $this->avatarUrl($message->user_id, $message->img_path),
+            'user_avatar_url' => User::avatarUrlFor($message->user_id, $message->img_path),
             'body' => $message->message,
             'created_at' => Carbon::parse($message->created_at)->toIso8601String(),
         ];
-    }
-
-    private function avatarUrl($userId, ?string $path): string
-    {
-        if (! $path) {
-            return 'https://bootdey.com/img/Content/avatar/avatar6.png';
-        }
-
-        if (Str::startsWith($path, ['http://', 'https://', '/'])) {
-            return $path;
-        }
-
-        return asset('storage/img_paths/' . $userId . '/' . $path);
     }
 }
