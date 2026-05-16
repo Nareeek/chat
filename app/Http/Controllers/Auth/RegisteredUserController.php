@@ -9,6 +9,8 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 
 class RegisteredUserController extends Controller
@@ -34,10 +36,11 @@ class RegisteredUserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'full_name' => ['required', 'string', 'max:255'],
-            'name' => ['required', 'string', 'max:255'],
+            'full_name' => ['required', 'string', 'max:255', 'unique:users,full_name'],
+            'name' => ['required', 'string', 'max:255', 'unique:users,name'],
 //            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'img_path' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
         ]);
 
         $user = User::create([
@@ -47,10 +50,12 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        if (request()->hasFile('img_path')){
-            $img_path = request()->file('img_path')->getClientOriginalName();
-            request()->file('img_path')->storeAs('public/img_paths', $user->id.'/'.$img_path, '');
-            $user->update(['img_path' => $img_path]);
+        if ($request->hasFile('img_path')) {
+            $extension = $request->file('img_path')->extension();
+            $imgPath = Str::uuid() . '.' . $extension;
+
+            Storage::putFileAs('public/img_paths/' . $user->id, $request->file('img_path'), $imgPath);
+            $user->update(['img_path' => $imgPath]);
         }
 
         event(new Registered($user));

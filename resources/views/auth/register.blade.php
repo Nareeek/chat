@@ -57,7 +57,7 @@
                 <div class="mt-4">
                     <x-label for="img_path" :value="__('User image')" />
 
-                    <x-input id="img_path" class="block mt-1 w-full" type="file" name="img_path" required />
+                    <x-input id="img_path" class="block mt-1 w-full" type="file" name="img_path" accept="image/png,image/jpeg,image/gif,image/webp" />
                 </div>
 
             <div class="flex items-center justify-end mt-4">
