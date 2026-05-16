@@ -1,4 +1,12 @@
-<div class="chat-shell" id="chat-app" data-user-id="{{ \Illuminate\Support\Facades\Auth::id() }}">
+@php($currentUser = \Illuminate\Support\Facades\Auth::user())
+
+<div
+    class="chat-shell"
+    id="chat-app"
+    data-user-id="{{ $currentUser->id }}"
+    data-user-name="{{ $currentUser->name }}"
+    data-user-avatar-url="{{ $currentUser->avatar_url }}"
+>
     <aside class="chat-sidebar">
         <div class="chat-toolbar">
             <input type="search" id="searching" class="search-bar" placeholder="Search users or rooms" autocomplete="off">

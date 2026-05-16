@@ -20,6 +20,8 @@ import Echo from 'laravel-echo';
 
 window.Pusher = require('pusher-js');
 
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
 window.Echo = new Echo({
     broadcaster: 'pusher',
     key: process.env.MIX_PUSHER_APP_KEY,
@@ -29,4 +31,11 @@ window.Echo = new Echo({
     wssPort: process.env.MIX_PUSHER_PORT || 6001,
     forceTLS: (process.env.MIX_PUSHER_SCHEME || 'http') === 'https',
     enabledTransports: ['ws', 'wss'],
+    authEndpoint: '/broadcasting/auth',
+    auth: {
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    },
 });

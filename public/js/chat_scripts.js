@@ -7,10 +7,13 @@
 
     const state = {
         myId: Number(app.dataset.userId),
+        myName: app.dataset.userName || 'You',
+        myAvatarUrl: app.dataset.userAvatarUrl || 'https://bootdey.com/img/Content/avatar/avatar6.png',
         currentChatId: null,
         currentChannel: null,
         messages: new Set(),
         searchTimer: null,
+        nextClientMessageId: 1,
     };
 
     const elements = {
@@ -67,7 +70,39 @@
         const img = document.createElement('img');
         img.alt = alt;
         img.src = src || 'https://bootdey.com/img/Content/avatar/avatar6.png';
+        img.decoding = 'async';
+        img.loading = 'lazy';
         return img;
+    }
+
+    function displayDate(message, status) {
+        return status === 'sending' ? 'sending...' : new Date(message.created_at).toLocaleString();
+    }
+
+    function applyMessage(list, message, status) {
+        const item = list.querySelector('li');
+        const img = list.querySelector('.message-img img');
+        const name = list.querySelector('.name');
+        const text = list.querySelector('.text');
+        const date = list.querySelector('.date');
+        const id = Number(message.id);
+
+        if (id) {
+            state.messages.add(id);
+            list.dataset.messageId = String(id);
+        }
+
+        item.className = Number(message.user_id) === state.myId ? 'out' : 'in';
+
+        if (status) {
+            item.classList.add(status);
+        }
+
+        img.alt = message.user_name || 'Avatar';
+        img.src = message.user_avatar_url || 'https://bootdey.com/img/Content/avatar/avatar6.png';
+        name.textContent = message.user_name || 'You';
+        text.textContent = message.body;
+        date.textContent = displayDate(message, status);
     }
 
     function chatRow(label, detail, imageUrl, onClick, className, chatId) {
@@ -141,6 +176,10 @@
         const list = document.createElement('ul');
         list.className = 'message-list';
 
+        if (message.client_id) {
+            list.dataset.clientMessageId = message.client_id;
+        }
+
         const item = document.createElement('li');
         item.className = Number(message.user_id) === state.myId ? 'out' : 'in';
 
@@ -174,8 +213,11 @@
         body.appendChild(bubble);
         item.append(image, body);
         list.appendChild(item);
+        applyMessage(list, message, status);
         elements.history.appendChild(list);
         elements.history.scrollTop = elements.history.scrollHeight;
+
+        return list;
     }
 
     function enableComposer(enabled) {
@@ -287,11 +329,14 @@
         elements.input.value = '';
         enableComposer(true);
 
-        appendMessage({
+        const clientId = 'pending-' + state.nextClientMessageId++;
+        const pending = appendMessage({
             id: 0,
+            client_id: clientId,
             chat_id: state.currentChatId,
             user_id: state.myId,
-            user_name: 'You',
+            user_name: state.myName,
+            user_avatar_url: state.myAvatarUrl,
             body,
             created_at: new Date().toISOString(),
         }, 'sending');
@@ -301,18 +346,21 @@
             body: JSON.stringify({ body }),
         })
             .then(data => {
-                const pending = elements.history.querySelector('.sending');
-                if (pending) {
-                    pending.closest('.message-list').remove();
+                if (pending && pending.isConnected) {
+                    applyMessage(pending, data.message);
+                    elements.history.scrollTop = elements.history.scrollHeight;
+                    return;
                 }
+
                 appendMessage(data.message);
             })
             .catch(error => {
-                const pending = elements.history.querySelector('.sending');
-                if (pending) {
-                    pending.classList.remove('sending');
-                    pending.classList.add('failed');
-                    const date = pending.querySelector('.date');
+                const item = pending ? pending.querySelector('li') : null;
+
+                if (item) {
+                    item.classList.remove('sending');
+                    item.classList.add('failed');
+                    const date = item.querySelector('.date');
                     if (date) {
                         date.textContent = error.message;
                     }
