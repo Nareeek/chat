@@ -517,6 +517,15 @@ img {
     padding: 16px;
 }
 
+.msg_history {
+    background:
+        linear-gradient(rgba(255,255,255,0.86), rgba(255,255,255,0.86)),
+        url('/img/facebook_cover_photo_1.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
 .type_msg {
     display: flex;
     gap: 10px;
