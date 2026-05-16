@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -19,9 +18,11 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'email',
         'password',
         'img_path',
         'full_name',
+        'type',
     ];
 
     /**
@@ -39,9 +40,9 @@ class User extends Authenticatable
      *
      * @var array<string, string>
      */
-//    protected $casts = [
-//        'email_verified_at' => 'datetime',
-//    ];
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
 
     public function chats(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {

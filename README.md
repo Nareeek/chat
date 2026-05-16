@@ -1,5 +1,25 @@
 # Missenger!
 
+## Docker-first local setup
+
+This project is intended to run without installing Composer or Node dependencies on the host.
+Dependencies are installed inside Docker volumes.
+
+```bash
+docker compose up --build
+docker compose exec app php artisan migrate
+```
+
+Open the app at http://localhost:8080. Soketi listens on ws://localhost:6001.
+
+Useful commands:
+
+```bash
+docker compose exec app php artisan test
+docker compose exec app php artisan route:list
+docker compose run --rm assets npm run production
+```
+
 
 
  Welcome |          Register            |   Login

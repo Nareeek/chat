@@ -1,405 +1,398 @@
-$(document).ready(function(){
-    $.ajax({ url: "/generate_friend_list_and_predefined_rooms/",
-        context: document.body,
-        success: function(data){
-            myId = localStorage.getItem('my_id');
+(function () {
+    const app = document.getElementById('chat-app');
 
-            const unique1 = [];
-            data['friend_list'].map(x => unique1.filter(a => a.name == x.name && a.id == x.id).length > 0 ? null : unique1.push(x));
-            $('#friend_list').empty();
-            for(let friend of unique1) {
-                if (friend.id != myId) {
-                    $('#friend_list').append(
-                        generateFriend(friend),
-                        // alert(JSON.stringify(friend))
-                    )
-                }
-            }
+    if (!app) {
+        return;
+    }
 
-            const unique2 = [];
-            // alert(JSON.stringify(data['room_list']));
-            data['room_list'].map(x => unique2.filter(a => a.name == x.name && a.id == x.id).length > 0 ? null : unique2.push(x));
-            $('#rooms_part').empty();
-            for(let chat of unique2) {
-                $('#rooms_part').append(
-                    generateChat(chat)
-                )
-            }
-        }
-    });
-
-    $('.type_msg').keypress(function(e){
-        if (e.which === 13){
-            $(".msg_send_btn").click();
-        }
-    });
-
-    $('#ddlist').empty().hide();
-
-    function generateMessage(myId=null, data) {
-        localStorage.setItem('msg_clicked_id', data.user_id);
-        let clicked_id = localStorage.getItem('msg_clicked_id');
-
-        let msgType = data.user_id == myId ? "out" : "in";
-        let img = data.img_path;
-        let msg = `
-        <ul class="message-list" id="message_item" >
-          <li class=${ msgType }>
-            <div class="message-img">
-              <img alt="Avatar" src= ${ "storage/img_paths/" + data.user_id + '/' + data.img_path } data-rooms_user_id=${ data.user_id }>
-            </div>
-            <div class="message-body">
-              <div class="chat-message">
-                <h5 class="name">${ data.name }</h5>
-                <p class="text">${ data.message }</p>
-                <p class="date">${ data.created_at }</p>
-              </div>
-            </div>
-          </li>
-        </ul>`
-        return msg;
+    const state = {
+        myId: Number(app.dataset.userId),
+        currentChatId: null,
+        currentChannel: null,
+        messages: new Set(),
+        searchTimer: null,
     };
 
-    function generateFriend(friend){
-        // alert(friend.chat_name);
-        let name = JSON.stringify(friend.chat_name);
-        // alert(JSON.stringify(friend));
-        return  ` <div class="chat_list" data-id=${ friend.id } data-chat_name=${ name }>
-                <div class="chat_people">
-                    <div class="chat_img">
-                        <img src="storage/img_paths/${ friend.id }/${ friend.img_path }" alt="img loading error">
-                    </div>
-                    <div class="chat_ib">
-                        <h5>${ friend.name }
-                            <span class="chat_date">${ friend.created_at }</span>
-                        </h5>
-                        <p>${ friend.full_name }</p>
-                    </div>
-                </div>
-            </div>`
+    const elements = {
+        search: document.getElementById('searching'),
+        searchResults: document.getElementById('ddlist'),
+        directList: document.getElementById('friend_list'),
+        roomList: document.getElementById('rooms_part'),
+        header: document.getElementById('header'),
+        history: document.querySelector('.msg_history'),
+        form: document.getElementById('message_form'),
+        input: document.querySelector('.write_msg'),
+        send: document.getElementById('send_message'),
+        roomCreate: document.getElementById('room_create'),
+        roomInput: document.querySelector('.room_name'),
+        roomButton: document.querySelector('.new_room_name_btn'),
+        addRoom: document.querySelector('.adding_room'),
+        inviteAssistant: document.getElementById('invite_assistant'),
     };
 
-    function generateChat(chat){
-        return  `<div class="room_list" style='overflow: hidden' data-chat_id="${ chat.id }" data-chat_room_name=${ chat.name }>
-                    <div class="chat_people">
-                        <div class="chat_img">
-                            <img src="https://cdn.iconscout.com/icon/premium/png-256-thumb/chat-room-3-1058983.png" alt="img loading error">
-                        </div>
-                        <div class="chat_ib">
-                            <h5>${ chat.name }<span class="chat_date">${ chat.created_at }</span></h5>
-                        </div>
-                    </div>
-                </div>`
-    };
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-    $(document).on ("click", ".chat_list", function () {
-
-        localStorage.setItem('your_id', $(this).data('id'));
-        localStorage.setItem('your_name', $(this).data('chat_name'));
-
-
-        $(this).siblings().removeClass('active_chat');
-        $(this).siblings().removeClass('active_messaging');
-
-        $(this).addClass('active_chat');
-        $(this).addClass('active_messaging');
-
-        $('.room_list').removeClass('active_messaging');
-        $(".participate"). css("display", "none");
-        $(".room_name"). css("display", "none");
-        $(".new_room_name_btn"). css("display", "none");
-        // alert('before ajax');
-
-
-        $.ajax({
-            url: "/chat/" + $(this).data("id"),
-            success: function (data) {
-                let x = localStorage.getItem('your_name');
-                let y = localStorage.getItem('your_id');
-
-                document.getElementById("header").innerHTML = x + ' #' + y;
-
-                let myId = localStorage.getItem("my_id");
-                $(".msg_history").empty();
-                $(".write_msg").val('').attr('readonly', false);
-
-                if (data.length !== 0){
-                    for(let d of data) {
-                        $(".msg_history").append(
-                            generateMessage(myId, d)
-                        )
-                        $(".msg_history").animate({scrollTop: $(".msg_history")[0].scrollHeight}, 10);
-                    }
-                }
-            }
-        });
-    });
-
-    $(document).on ("click", ".room_list", function (){
-        localStorage.setItem('roomId', $(this).data('chat_id'));
-
-        // localStorage.setItem('your_id', $(this).data('id'));
-        localStorage.setItem('your_chat_name', $(this).data('chat_room_name'));
-
-        var roomId = localStorage.getItem('roomId');
-        $(".msg_history").empty();
-
-        $(this).siblings().removeClass('active_chat');
-        $(this).siblings().removeClass('active_messaging');
-
-        $(this).addClass('active_chat');
-        $(this).addClass('active_messaging');
-
-        $(".chat_list").removeClass('active_messaging');
-        $(".write_msg").val('').attr('readonly', true);
-        $(".participate"). css("display", "none");
-
-        $(".room_name"). css("display", "none");
-        $(".new_room_name_btn"). css("display", "none");
-
-        $.ajax({
-            url: "/checking/" + roomId,
-            success: function (data) {
-                $(".write_msg").val('').attr('readonly', true);
-
-                let x = localStorage.getItem('your_chat_name');
-                let y = localStorage.getItem('roomId');
-
-                document.getElementById("header").innerHTML = x + ' #' + y;
-
-                if (data['status'] == true){
-                    console.log('already in');
-                    $(".msg_history").empty();
-                    let myId = localStorage.getItem("my_id");
-                    $(".write_msg").val('').attr('readonly', false);
-                    $(".msg_history").empty();
-
-                    if (data['messages'].length !== 0){
-                        for(let d of data['messages']) {
-                            $(".msg_history").append(
-                                generateMessage(myId, d)
-                            )
-                            $(".msg_history").animate({scrollTop: $(".msg_history")[0].scrollHeight}, 10);
-                        }
-                    }
-                }
-                else if (data['status'] == false){
-                    $(".participate"). css("display", "block");
-                }
-            }
-        });
-    });
-
-    $(document).on('change', '#searching', function() {
-        myId = localStorage.getItem('my_id');
-        $('#ddlist').empty().show();
-        $.ajax({
-            url: "/generate_searching_list/" + $(this).val(),
-            success: function (data) {
-                if (data['status1'] || data['status2']){
-                    // before generating dropdown we must clear previous list
-                    $('#ddlist').empty();
-                    $('#ddlist').append(
-                        `<option class="items" value="Select">Select user/room</option>`
-                    )
-                }
-
-                // if there is a list of matching users
-                // then generate dropdown list for users
-                if (data['status1'] == true){
-                    // $('#ddlist').attr('size', data['list'].length);
-                    for(let d of data['users_list']) {
-                        if (d.id != myId){
-                            $('#ddlist').append(
-                                `<option class="items" value="${ d.id }"  name="user">User : ${ d.name }</option>`
-                            )
-                        }
-                    }
-                }
-                if (data['status2'] == true){
-                    for(let d of data['rooms_list']) {
-                        if (d.id != myId){
-                            $('#ddlist').append(
-                                `<option class="items" value="${ d.id }" name="room">Room : ${ d.name }</option>`
-                            )
-                        }
-                    }
-                }
-            }
-        });
-    });
-
-    $(document).on('change', 'select', function() {
-        let clicked_item_id = this.value;
-
-        let optionSelected = $(this).find('option:selected').attr('name');
-        let Type = '';
-
-        if (optionSelected == 'room'){
-            Type = 'room';
-            $('.msg_history').empty();
-            localStorage.setItem('clicked_item_id', clicked_item_id);
-
-        }else if (optionSelected = 'user'){
-            Type = 'user';
-            localStorage.setItem('clicked_item_id', '-1');
-        }
-        $('#ddlist').empty().hide();
-
-        $.ajax({
-            url: "/add_friend_or_room/" + clicked_item_id + '/' + Type,
-            success: function (data) {
-                if (data == 1){
-                    // alert('creating new users chat');
-                    $('.inbox_chat').append(location.reload(true));
-                }else if (data == 2){
-                    $('.participate').show();
-                    // alert('no matching room');
-                }
+    function api(path, options = {}) {
+        return fetch(path, {
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(options.headers || {}),
             },
+            ...options,
+        }).then(async response => {
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const message = data.message || 'Request failed';
+                throw new Error(message);
+            }
+
+            return data;
         });
-    });
+    }
 
-    $(document).on('click','#message_item img',function(){
-        let clicked_id = $(this).data('rooms_user_id');
+    function setEmptyState(message) {
+        elements.history.replaceChildren();
+        const empty = document.createElement('p');
+        empty.className = 'empty_state';
+        empty.textContent = message;
+        elements.history.appendChild(empty);
+    }
 
-        $.ajax({
-            url: "/start_chat/" + clicked_id,
-            success: function (data) {
-                let myId = localStorage.getItem("my_id");
+    function avatar(src, alt) {
+        const img = document.createElement('img');
+        img.alt = alt;
+        img.src = src || 'https://bootdey.com/img/Content/avatar/avatar6.png';
+        return img;
+    }
 
-                let x = localStorage.getItem('your_name');
-                let y = localStorage.getItem('your_id');
+    function chatRow(label, detail, imageUrl, onClick, className, chatId) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = className;
+        row.dataset.chatId = chatId;
+        row.addEventListener('click', onClick);
 
-                document.getElementById("header").innerHTML = x + ' #' + y;
+        const image = document.createElement('span');
+        image.className = 'chat_img';
+        image.appendChild(avatar(imageUrl, label));
 
-                if (clicked_id != myId){
-                    if (data['status'] == true){
-                        $(".msg_history").empty();
-                        $(".write_msg").val('').attr('readonly', false);
+        const text = document.createElement('span');
+        text.className = 'chat_ib';
 
-                        $('.chat_list').removeClass('active_messaging');
-                        $('.chat_list').removeClass('active_chat');
+        const title = document.createElement('strong');
+        title.textContent = label;
+        text.appendChild(title);
 
-                        $('.room_list').removeClass('active_messaging');
-                        $('.room_list').removeClass('active_chat');
+        if (detail) {
+            const meta = document.createElement('small');
+            meta.textContent = detail;
+            text.appendChild(meta);
+        }
 
-                        let item = $("#friend_list").find(`[data-id=${clicked_id}]`);
-                        item.addClass("active_chat");
-                        item.addClass("active_messaging");
-                        localStorage.setItem('your_id', clicked_id);
+        row.append(image, text);
+        return row;
+    }
 
-                        for(let d of data['messages']) {
-                            $(".msg_history").append(
-                                generateMessage(myId, d)
-                            )
-                            $(".msg_history").animate({scrollTop: $(".msg_history")[0].scrollHeight}, 10);
-                        }
-                    }
-                    else if (data['status'] == false){
-                        $('.inbox_chat').append(location.reload(true));
-                    }
-                }
+    function renderChatLists(data) {
+        elements.directList.replaceChildren();
+        elements.roomList.replaceChildren();
+
+        data.direct_chats.forEach(chat => {
+            elements.directList.appendChild(chatRow(
+                chat.user_name,
+                chat.full_name || chat.name,
+                chat.avatar_url,
+                () => openChat(chat.id, chat.user_name),
+                'chat_list',
+                chat.id
+            ));
+        });
+
+        data.rooms.forEach(room => {
+            elements.roomList.appendChild(chatRow(
+                room.name,
+                'Room',
+                'https://cdn.iconscout.com/icon/premium/png-256-thumb/chat-room-3-1058983.png',
+                () => openChat(room.id, room.name),
+                'room_list',
+                room.id
+            ));
+        });
+    }
+
+    function appendMessage(message, status) {
+        const id = Number(message.id);
+
+        if (id && state.messages.has(id)) {
+            return;
+        }
+
+        if (id) {
+            state.messages.add(id);
+        }
+
+        elements.history.querySelectorAll('.empty_state').forEach(empty => empty.remove());
+
+        const list = document.createElement('ul');
+        list.className = 'message-list';
+
+        const item = document.createElement('li');
+        item.className = Number(message.user_id) === state.myId ? 'out' : 'in';
+
+        if (status) {
+            item.classList.add(status);
+        }
+
+        const image = document.createElement('div');
+        image.className = 'message-img';
+        image.appendChild(avatar(message.user_avatar_url, message.user_name || 'Avatar'));
+
+        const body = document.createElement('div');
+        body.className = 'message-body';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-message';
+
+        const name = document.createElement('h5');
+        name.className = 'name';
+        name.textContent = message.user_name || 'You';
+
+        const text = document.createElement('p');
+        text.className = 'text';
+        text.textContent = message.body;
+
+        const date = document.createElement('p');
+        date.className = 'date';
+        date.textContent = status === 'sending' ? 'sending...' : new Date(message.created_at).toLocaleString();
+
+        bubble.append(name, text, date);
+        body.appendChild(bubble);
+        item.append(image, body);
+        list.appendChild(item);
+        elements.history.appendChild(list);
+        elements.history.scrollTop = elements.history.scrollHeight;
+    }
+
+    function enableComposer(enabled) {
+        elements.input.disabled = !enabled;
+        elements.send.disabled = !enabled || elements.input.value.trim() === '';
+        elements.inviteAssistant.hidden = !enabled;
+    }
+
+    function markActive(chatId) {
+        document.querySelectorAll('.chat_list, .room_list').forEach(row => {
+            if (Number(row.dataset.chatId) === Number(chatId)) {
+                row.classList.add('active_chat', 'active_messaging');
+            } else {
+                row.classList.remove('active_chat', 'active_messaging');
             }
         });
+    }
 
-    });
+    function subscribe(chatId) {
+        if (!window.Echo) {
+            return;
+        }
 
+        if (state.currentChannel) {
+            window.Echo.leave(state.currentChannel);
+        }
 
-    $('.msg_send_btn').click(function() {
-
-        if ( $(".chat_list").hasClass('active_messaging')){
-            // for users chat messages
-            $.ajax({
-                url: "/messages/" + localStorage.getItem("your_id") + '/' + $('.write_msg').val(),
-                success: function (data) {
-                    let myId = localStorage.getItem("my_id");
-
-                    if (data === 'emtpy'){
-                        console.log('empty text');
-                        return;
-                    } else{
-                        $(".msg_history").empty();
-                        if (data.length === 0){
-                            alert('All chat history deleted from server!')
-                        }else if (data.length !== 0){
-                            $(".write_msg").val('').attr('readonly', false);
-                            for(let d of data) {
-                                $(".msg_history").append(
-                                    generateMessage(myId, d)
-                                );
-                            }
-                            $(".msg_history").animate({scrollTop: $(".msg_history")[0].scrollHeight}, 10);
-                        }
-                    }
+        state.currentChannel = 'chat.' + chatId;
+        window.Echo.private(state.currentChannel)
+            .listen('.message.sent', event => {
+                if (Number(event.message.chat_id) === Number(state.currentChatId)) {
+                    appendMessage(event.message);
                 }
             });
-        }
-        else if ( $(".room_list").hasClass('active_messaging')){
-            // for rooms messages
-            $.ajax({
-                url: "/room/" + localStorage.getItem("roomId") + '/' + $('.write_msg').val(),
-                success: function (data) {
-                    let myId = localStorage.getItem("my_id");
-                    if (data === 'emtpy'){
-                        console.log('empty text');
-                        return;
-                    } else{
-                        $(".msg_history").empty();
-                        $(".write_msg").val('').attr('readonly', false);
-                        if (data.length === 0) {
-                            alert('All chat history deleted from server!')
-                        }else if (data.length !== 0){
-                            for(let d of data) {
-                                $(".msg_history").append(
-                                    generateMessage(myId, d)
-                                )
-                                $(".msg_history").animate({scrollTop: $(".msg_history")[0].scrollHeight}, 10);
-                            }
-                        }
-                    }
+    }
+
+    function openChat(chatId, name) {
+        state.currentChatId = chatId;
+        state.messages = new Set();
+        elements.header.textContent = name;
+        markActive(chatId);
+        elements.input.value = '';
+        enableComposer(true);
+        setEmptyState('Loading messages...');
+        subscribe(chatId);
+
+        api('/api/chats/' + chatId + '/messages')
+            .then(data => {
+                elements.history.replaceChildren();
+
+                if (!data.messages.length) {
+                    setEmptyState('No messages yet.');
+                    return;
                 }
+
+                data.messages.forEach(message => appendMessage(message));
+                markActive(chatId);
+            })
+            .catch(error => {
+                enableComposer(false);
+                setEmptyState(error.message);
             });
-        }
+    }
+
+    function loadChats() {
+        api('/api/chats')
+            .then(renderChatLists)
+            .catch(error => setEmptyState(error.message));
+    }
+
+    function renderSearchResults(data) {
+        elements.searchResults.replaceChildren();
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select result';
+        elements.searchResults.appendChild(placeholder);
+
+        data.users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = 'user:' + user.id;
+            option.textContent = 'User: ' + user.name;
+            elements.searchResults.appendChild(option);
+        });
+
+        data.rooms.forEach(room => {
+            const option = document.createElement('option');
+            option.value = 'room:' + room.id;
+            option.textContent = 'Room: ' + room.name;
+            elements.searchResults.appendChild(option);
+        });
+
+        elements.searchResults.hidden = data.users.length + data.rooms.length === 0;
+    }
+
+    elements.input.addEventListener('input', () => {
+        elements.send.disabled = elements.input.value.trim() === '';
     });
 
-    $('.participate').click(function (){
-        let roomId = localStorage.getItem('clicked_item_id');
-        let myId = localStorage.getItem("my_id");
+    elements.form.addEventListener('submit', event => {
+        event.preventDefault();
 
-        $(".msg_history").empty();
-        $(".participate"). css("display", "none");
+        const body = elements.input.value.trim();
 
-        $.ajax({
-            url: "/getmessages/" + roomId,
-            success: function (data) {
-                $(".write_msg").val('').attr('readonly', false);
-                $('.inbox_chat').append(location.reload(true));
-            }
+        if (!state.currentChatId || body === '') {
+            return;
+        }
+
+        elements.input.value = '';
+        enableComposer(true);
+
+        appendMessage({
+            id: 0,
+            chat_id: state.currentChatId,
+            user_id: state.myId,
+            user_name: 'You',
+            body,
+            created_at: new Date().toISOString(),
+        }, 'sending');
+
+        api('/api/chats/' + state.currentChatId + '/messages', {
+            method: 'POST',
+            body: JSON.stringify({ body }),
         })
+            .then(data => {
+                const pending = elements.history.querySelector('.sending');
+                if (pending) {
+                    pending.closest('.message-list').remove();
+                }
+                appendMessage(data.message);
+            })
+            .catch(error => {
+                const pending = elements.history.querySelector('.sending');
+                if (pending) {
+                    pending.classList.remove('sending');
+                    pending.classList.add('failed');
+                    const date = pending.querySelector('.date');
+                    if (date) {
+                        date.textContent = error.message;
+                    }
+                }
+            });
     });
 
-    $('.adding_room').click(function(){
-        $(".msg_history").empty();
-        $(".room_name"). css("display", "block").val('').attr('readonly', false);
-        $(".new_room_name_btn"). css("display", "block").val('').attr('readonly', false);
-        $("#myFile"). css("display", "block");
+    elements.search.addEventListener('input', () => {
+        window.clearTimeout(state.searchTimer);
+        state.searchTimer = window.setTimeout(() => {
+            api('/api/search?query=' + encodeURIComponent(elements.search.value.trim()))
+                .then(renderSearchResults)
+                .catch(() => {
+                    elements.searchResults.hidden = true;
+                });
+        }, 250);
     });
 
-    $('.new_room_name_btn').click(function() {
-        let new_room_name = $('.room_name').val();
+    elements.searchResults.addEventListener('change', () => {
+        const [type, id] = elements.searchResults.value.split(':');
 
-        $(".msg_history").empty();
-        $(this). css("display", "none");
-        $(".room_name"). css("display", "none");
-        $("#myFile"). css("display", "none");
+        if (!type || !id) {
+            return;
+        }
 
-        $.ajax({
-            url: "/add_room/" + new_room_name,
-            success: function () {
-                $(".write_msg").val('').attr('readonly', false).append(location.reload(true));
+        const request = type === 'user'
+            ? api('/api/direct-chats', { method: 'POST', body: JSON.stringify({ user_id: Number(id) }) })
+            : api('/api/rooms/' + id + '/join', { method: 'POST' });
+
+        request.then(data => {
+            elements.search.value = '';
+            elements.searchResults.hidden = true;
+            loadChats();
+
+            if (type === 'user') {
+                openChat(data.chat.id, data.chat.user_name);
+            } else {
+                openChat(data.room.id, data.room.name);
             }
-        });
+        }).catch(error => setEmptyState(error.message));
     });
 
-});
+    elements.addRoom.addEventListener('click', () => {
+        elements.roomCreate.hidden = !elements.roomCreate.hidden;
+        elements.roomInput.focus();
+    });
+
+    elements.roomButton.addEventListener('click', () => {
+        const name = elements.roomInput.value.trim();
+
+        if (!name) {
+            return;
+        }
+
+        api('/api/rooms', {
+            method: 'POST',
+            body: JSON.stringify({ name }),
+        }).then(data => {
+            elements.roomInput.value = '';
+            elements.roomCreate.hidden = true;
+            loadChats();
+            openChat(data.room.id, data.room.name);
+        }).catch(error => setEmptyState(error.message));
+    });
+
+    elements.inviteAssistant.addEventListener('click', () => {
+        if (!state.currentChatId) {
+            return;
+        }
+
+        api('/api/chats/' + state.currentChatId + '/assistant', { method: 'POST' })
+            .then(() => {
+                elements.inviteAssistant.textContent = 'Assistant invited';
+                window.setTimeout(() => {
+                    elements.inviteAssistant.textContent = 'Invite assistant';
+                }, 1500);
+            })
+            .catch(error => setEmptyState(error.message));
+    });
+
+    enableComposer(false);
+    loadChats();
+})();
