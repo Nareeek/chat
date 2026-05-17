@@ -500,6 +500,10 @@ img {
     font-size: 16px;
 }
 
+.chat-shell [hidden] {
+    display: none !important;
+}
+
 .search-bar,
 .search-results,
 .write_msg {
