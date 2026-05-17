@@ -11,7 +11,14 @@
 <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
 
 <style>
-    body {font-family: "Times New Roman", Georgia, Serif;}
+    html,
+    body {
+        min-height: 100%;
+        background: #ffffff;
+        color: #1f2933;
+        font-family: "Times New Roman", Georgia, Serif;
+    }
+
     h1, h2, h3, h4, h5, h6 {
         font-family: "Playfair Display";
         letter-spacing: 5px;
