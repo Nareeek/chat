@@ -35,6 +35,14 @@
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+    function socketHeaders() {
+        const socketId = window.Echo && typeof window.Echo.socketId === 'function'
+            ? window.Echo.socketId()
+            : null;
+
+        return socketId ? { 'X-Socket-ID': socketId } : {};
+    }
+
     function api(path, options = {}) {
         return fetch(path, {
             credentials: 'same-origin',
@@ -43,6 +51,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken,
                 'X-Requested-With': 'XMLHttpRequest',
+                ...socketHeaders(),
                 ...(options.headers || {}),
             },
             ...options,
@@ -162,6 +171,18 @@
 
     function appendMessage(message, status) {
         const id = Number(message.id);
+        const clientId = message.client_id;
+
+        if (clientId) {
+            const pending = Array.from(elements.history.querySelectorAll('[data-client-message-id]'))
+                .find(list => list.dataset.clientMessageId === clientId);
+
+            if (pending) {
+                applyMessage(pending, message, status);
+                elements.history.scrollTop = elements.history.scrollHeight;
+                return pending;
+            }
+        }
 
         if (id && state.messages.has(id)) {
             return;
@@ -343,7 +364,7 @@
 
         api('/api/chats/' + state.currentChatId + '/messages', {
             method: 'POST',
-            body: JSON.stringify({ body }),
+            body: JSON.stringify({ body, client_id: clientId }),
         })
             .then(data => {
                 if (pending && pending.isConnected) {

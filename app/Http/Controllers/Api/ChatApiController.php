@@ -91,6 +91,7 @@ class ChatApiController extends Controller
 
         $data = $request->validate([
             'body' => ['required', 'string', 'max:4000'],
+            'client_id' => ['nullable', 'string', 'max:100'],
         ]);
 
         $chatUserId = $this->chatUserId($chat, Auth::id());
@@ -103,6 +104,11 @@ class ChatApiController extends Controller
         ]);
 
         $payload = $this->messagePayload($messageId);
+
+        if (! empty($data['client_id'])) {
+            $payload['client_id'] = $data['client_id'];
+        }
+
         broadcast(new MessageSent($payload))->toOthers();
 
         if ($this->shouldTriggerAssistant($data['body'], Auth::id(), $chat)) {
